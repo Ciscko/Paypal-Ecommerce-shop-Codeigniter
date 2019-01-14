@@ -1,0 +1,234 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Paypal extends CI_Controller 
+{
+     function  __construct(){
+        parent::__construct();
+        $this->load->library('paypal_lib','email');
+        $this->load->model('Web_Model', 'web_model');
+     }
+     
+     function success(){
+        //get the transaction data
+        $data = array();
+        $paypalInfo = $this->input->get();
+          if(!empty($paypalInfo)){
+          	$data['item_number'] = $paypalInfo['item_number']; 
+	        $data['txn_id'] = $paypalInfo["tx"];
+	        $data['payment_amt'] = $paypalInfo["amt"];
+	        $data['currency_code'] = $paypalInfo["cc"];
+	        $data['status'] = $paypalInfo["st"];
+          }
+
+       
+        
+        //pass the transaction data to view
+         $this->load->view('web/inc/header');
+        $this->load->view('web/paypal/success', $data);
+         $this->load->view('web/inc/footer');
+     }
+     
+     function cancel(){
+        $this->load->view('web/inc/header');
+        $this->load->view('web/paypal/cancel');
+         $this->load->view('web/inc/footer');
+     }
+     
+     function ipn(){
+        //paypal return transaction details array
+        $paypalInfo    = $this->input->post();
+
+        $data['keyz'] = $paypalInfo['custom'];
+        //$data['product_id']    = $paypalInfo["item_number"];
+        $data['txn_id']    = $paypalInfo["txn_id"];
+        $data['payment_gross'] = $paypalInfo["mc_gross"];
+        $data['currency_code'] = $paypalInfo["mc_currency"];
+        $data['payer_email'] = $paypalInfo["payer_email"];
+        $data['payment_status']    = $paypalInfo["payment_status"];
+
+        $paypalURL = $this->paypal_lib->paypal_url;        
+        $result    = $this->paypal_lib->curlPost($paypalURL,$paypalInfo);
+        
+        //check whether the payment is verified
+        if(preg_match("/VERIFIED/i",$result)){
+            //insert the transaction data into the database
+            $this->web_model->insertTransaction($data);
+        
+            
+            
+                 $time = time();
+                 $this->web_model->confirm_payment( $data['keyz'], $data['payer_email'], $data['txn_id'], $time );
+         
+                $purchase = $this->web_model->get_purchase_by_key( $keyz );
+                $items = array(); 
+                $items = $this->web_model->get_order_info( $purchase->order_id ); 
+             //Using the order ID we can get the order details...
+                
+
+                $this->load->library('email');
+             // Send download link to customer 
+                $to = 'cisco1576@gmail.com'; 
+                $from = 'kiragufrancis97@gmail.com'; 
+                $name = 'kiragu';
+                
+                
+
+                $subject = 'Testing Mail';
+                
+                $message = '<p>Thanks for purchasing . Your download link is below.</p>'; 
+                $message .= '<p>' . anchor( 'download/' . $key ) . '</p>'; 
+                
+                $result = $this->email
+                                ->from($from, $name)
+                                ->to($to)
+                                ->subject($subject)
+                                ->message($message)
+                                ->send()
+                                ->clear();
+                                
+                var_dump($result);
+                        echo '<br />';
+                        echo $this->my_email->print_debugger();
+                        
+                        exit;
+   /*
+                // Send download link to customer 
+                $to = $purchase->email; 
+                $from = $this->config->item( 'no_reply_email' ); 
+                $name = $this->config->item( 'site_name' );
+                
+                foreach ($items as $item) {
+
+                $subject = $item->product_name . ' Download';
+                $segments = array( 'item', url_title( $item->product_name, 'dash', true ), $item->product_id ); 
+                $message = '<p>Thanks for purchasing ' . anchor( $segments, $item->product_name ) . ' from ' . anchor( '', $name ) . '. Your download link is below.</p>'; 
+                $message .= '<p>' . anchor( 'download/' . $key ) . '</p>'; 
+                
+                $result = $this->email
+                                ->from($from, $name)
+                                ->to($to)
+                                ->subject($subject)
+                                ->message($message)
+                                ->send()
+                                ->clear();
+                                
+                var_dump($result);
+                        echo '<br />';
+                        echo $this->email->print_debugger();
+                        
+                        exit;
+                        
+                        
+                        
+                    // Send confirmation of purchase to admin 
+                $message = '<p><strong>New Purchase:</strong></p><ul>'; 
+                $message .= '<li><strong>Item:</strong> ' . anchor( $segments, $item->product_name ) . '</li>'; 
+                $message .= '<li><strong>Price:</strong> $' . $item->product_price . '</li>'; 
+                $message .= '<li><strong>Email:</strong> ' . $purchase->email . '</li><li></li>'; 
+                $message .= '<li><strong>PayPal Email:</strong> ' . $payer_email . '</li>'; 
+                $message .= '<li><strong>PayPal TXN ID:</strong> ' . $txn_id . '</li></ul>'; 
+                $this->email->from( $from, $name ); 
+                $this->email->to( $this->config->item( 'admin_email') ); 
+                $this->email->subject( 'A purchase has been made' ); 
+                $this->email->message( $message ); 
+                $this->email->send(); 
+                $this->email->clear();
+    */
+
+                            // }   
+     }  
+       
+                
+    }
+}
+
+/*
+class Paypal extends CI_Controller 
+{
+     function  __construct(){
+        parent::__construct();
+        $this->load->library('Paypal_lib');
+        //$this->load->model('product');
+     }
+     
+     function success(){
+        //get the transaction data
+        
+        //pass the transaction data to view
+        $this->session->set_flashdata( 'success', 'Your payment is being processed now. Your download link will be emailed to your shortly.' );
+        redirect('Web');
+        /*$this->load->view('web/inc/header');
+        $this->load->view('web/paypal/success');
+        $this->load->view('web/inc/footer');
+        */
+    // }
+     /*
+     function cancel(){
+        $this->session->set_flashdata( 'success', 'Payment cancelled.' ); 
+      $this->load->view('web/inc/header');
+       $this->load->view('web/paypal/cancel');
+        $this->load->view('web/inc/footer');
+       
+     }
+     
+    function ipn() { 
+        
+          if ( $this->paypal_lib->validate_ipn() )
+           { 
+                $order_id = $this->paypal_lib->ipn_data['item_name']; 
+                $price = $this->paypal_lib->ipn_data['mc_gross']; 
+                $currency = $this->paypal_lib->ipn_data['mc_currency']; 
+                $payer_email = $this->paypal_lib->ipn_data['payer_email']; 
+                $txn_id = $this->paypal_lib->ipn_data['txn_id']; 
+                $key = $this->paypal_lib->ipn_data['transaction_subject']; 
+                  $time = time();
+                $this->web_model->confirm_payment( $key, $payer_email, $txn_id, $time ); 
+
+                $purchase = $this->web_model->get_purchase_by_key( $key );
+                $items = array(); 
+                $items = $this->web_model->get_order_info( $purchase->order_id ); 
+
+
+
+
+
+                // Send download link to customer 
+                $to = $purchase->email; 
+                $from = $this->config->item( 'no_reply_email' ); 
+                $name = $this->config->item( 'site_name' );
+                
+                foreach ($items as $item) {
+
+                $subject = $item->product_name . ' Download';
+                $segments = array( 'item', url_title( $item->product_name, 'dash', true ), $item->product_id ); 
+                $message = '<p>Thanks for purchasing ' . anchor( $segments, $item->product_name ) . ' from ' . anchor( '', $name ) . '. Your download link is below.</p>'; 
+                $message .= '<p>' . anchor( 'download/' . $key ) . '</p>'; 
+                  
+                $this->email->from( $from, $name ); 
+                $this->email->to( $to ); 
+                $this->email->subject( $subject ); 
+                $this->email->message( $message ); 
+                $this->email->send(); 
+                $this->email->clear();
+
+
+                    // Send confirmation of purchase to admin 
+                $message = '<p><strong>New Purchase:</strong></p><ul>'; 
+                $message .= '<li><strong>Item:</strong> ' . anchor( $segments, $item->product_name ) . '</li>'; 
+                $message .= '<li><strong>Price:</strong> $' . $item->product_price . '</li>'; 
+                $message .= '<li><strong>Email:</strong> ' . $purchase->email . '</li><li></li>'; 
+                $message .= '<li><strong>PayPal Email:</strong> ' . $payer_email . '</li>'; 
+                $message .= '<li><strong>PayPal TXN ID:</strong> ' . $txn_id . '</li></ul>'; 
+                $this->email->from( $from, $name ); 
+                $this->email->to( $this->config->item( 'admin_email' ) ); 
+                $this->email->subject( 'A purchase has been made' ); 
+                $this->email->message( $message ); 
+                $this->email->send(); 
+                $this->email->clear();
+
+                 } 
+                
+               
+  } else echo 'Things screwed!!' ;
+}
+}*/
